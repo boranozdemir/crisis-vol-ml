@@ -1,0 +1,55 @@
+Post-GARCH diagnostic summary
+=============================
+
+Purpose:
+These diagnostics evaluate whether the fitted GARCH-family models removed serial dependence, remaining ARCH effects, and sign asymmetry from standardized residuals.
+
+Main reading rules:
+- Ljung-Box residual p-value < 0.05 suggests remaining serial correlation.
+- Ljung-Box squared residual p-value < 0.05 suggests remaining volatility clustering.
+- ARCH-LM p-value < 0.05 suggests remaining conditional heteroskedasticity.
+- Jarque-Bera p-value < 0.05 suggests non-normal standardized residuals.
+- Sign-bias p-value < 0.05 suggests remaining asymmetric response to shocks.
+- Normality rejection is not treated as model failure by itself in financial returns.
+
+Diagnostic rows: 36
+
+Remaining ARCH effects by model:
+- EGARCH_11: 5/12 cases
+- GARCH_11: 5/12 cases
+- GJR_GARCH_11: 3/12 cases
+
+Remaining squared-residual autocorrelation by model:
+- EGARCH_11: 6/12 cases
+- GARCH_11: 5/12 cases
+- GJR_GARCH_11: 4/12 cases
+
+Remaining sign bias by model:
+- EGARCH_11: 1/12 cases
+- GARCH_11: 7/12 cases
+- GJR_GARCH_11: 3/12 cases
+
+Best diagnostic pass count by asset and period:
+- KBE | crisis: GARCH_11 (5/5 checks passed)
+- KBE | full_sample: GJR_GARCH_11 (3/5 checks passed)
+- KBE | post_crisis: GARCH_11 (3/5 checks passed)
+- KBE | pre_crisis: GARCH_11 (3/5 checks passed)
+- SPY | crisis: GJR_GARCH_11 (5/5 checks passed)
+- SPY | full_sample: GJR_GARCH_11 (4/5 checks passed)
+- SPY | post_crisis: EGARCH_11 (2/5 checks passed)
+- SPY | pre_crisis: GARCH_11 (5/5 checks passed)
+- XLF | crisis: GARCH_11 (5/5 checks passed)
+- XLF | full_sample: GJR_GARCH_11 (4/5 checks passed)
+- XLF | post_crisis: EGARCH_11 (3/5 checks passed)
+- XLF | pre_crisis: GJR_GARCH_11 (5/5 checks passed)
+
+Crisis-period diagnostic highlights:
+- KBE | EGARCH_11: LB(z^2,20) p=0.5508, ARCH-LM p=0.3875, sign-bias p=0.3272, score=5/5
+- KBE | GARCH_11: LB(z^2,20) p=0.9145, ARCH-LM p=0.8975, sign-bias p=0.4288, score=5/5
+- KBE | GJR_GARCH_11: LB(z^2,20) p=0.7836, ARCH-LM p=0.7090, sign-bias p=0.9639, score=5/5
+- SPY | EGARCH_11: LB(z^2,20) p=0.2572, ARCH-LM p=0.0148, sign-bias p=0.1497, score=3/5
+- SPY | GARCH_11: LB(z^2,20) p=0.2364, ARCH-LM p=0.0089, sign-bias p=0.9481, score=3/5
+- SPY | GJR_GARCH_11: LB(z^2,20) p=0.5445, ARCH-LM p=0.0824, sign-bias p=0.5407, score=5/5
+- XLF | EGARCH_11: LB(z^2,20) p=0.5032, ARCH-LM p=0.4273, sign-bias p=0.2078, score=5/5
+- XLF | GARCH_11: LB(z^2,20) p=0.8673, ARCH-LM p=0.8657, sign-bias p=0.7449, score=5/5
+- XLF | GJR_GARCH_11: LB(z^2,20) p=0.6910, ARCH-LM p=0.6720, sign-bias p=0.6346, score=5/5

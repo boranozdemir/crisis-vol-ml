@@ -1,0 +1,47 @@
+Rolling GARCH-family volatility forecast summary
+=======================================================
+
+Purpose:
+This file summarizes rolling one-step-ahead forecasts from GARCH-family volatility models and a rolling-volatility benchmark.
+
+Forecast target:
+- next-day squared return, r_{t+1}^2
+
+Design:
+- Test origins start at: 2007-07-01
+- Rolling train window: 500 observations
+- Minimum train size: 250 observations
+- Naive benchmark window: 22 observations
+- Forecast horizon: one trading day ahead
+- Split is chronological; no random shuffling is used.
+
+Models:
+- Naive_Rolling22
+- GARCH_11
+- GJR_GARCH_11
+- EGARCH_11
+
+Successful prediction rows:
+- 16608
+
+Failed GARCH fits:
+- 0
+
+Main reading rules:
+- Lower RMSE, MAE, and QLIKE indicate better forecast performance.
+- QLIKE is the preferred volatility forecast loss.
+- GARCH forecasts are variance forecasts and are compared with r_{t+1}^2.
+- These are forecasting results, not parameter-interpretation results.
+
+Best models by QLIKE, overall:
+- asset=KBE: GJR_GARCH_11 (QLIKE=1.522168, RMSE=28.243216, MAE=10.737037)
+- asset=SPY: GJR_GARCH_11 (QLIKE=1.594421, RMSE=7.707248, MAE=2.729456)
+- asset=XLF: GJR_GARCH_11 (QLIKE=1.630123, RMSE=22.746472, MAE=8.887453)
+
+Best models by QLIKE, by test period:
+- asset=KBE | period=crisis: GJR_GARCH_11 (QLIKE=1.355217)
+- asset=KBE | period=post_crisis: GJR_GARCH_11 (QLIKE=1.617786)
+- asset=SPY | period=crisis: GJR_GARCH_11 (QLIKE=1.509723)
+- asset=SPY | period=post_crisis: GJR_GARCH_11 (QLIKE=1.642930)
+- asset=XLF | period=crisis: GJR_GARCH_11 (QLIKE=1.452296)
+- asset=XLF | period=post_crisis: GJR_GARCH_11 (QLIKE=1.731970)

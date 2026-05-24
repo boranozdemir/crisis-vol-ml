@@ -1,0 +1,61 @@
+GARCH-family model summary
+===========================
+
+Purpose:
+This file summarizes in-sample GARCH-family estimations for the 2008 mortgage crisis project.
+
+Models:
+- GARCH(1,1): symmetric volatility benchmark
+- GJR-GARCH(1,1): downside/asymmetric volatility model
+- EGARCH(1,1): robustness model for log-volatility asymmetry
+
+Main reading rules:
+- alpha + beta close to 1 indicates high volatility persistence.
+- GJR gamma > 0 suggests that negative shocks increase future volatility more than positive shocks.
+- Lower AIC/BIC values indicate better in-sample fit after penalizing model complexity.
+- AIC/BIC are not final forecast evaluation metrics; rolling forecast evaluation is handled later.
+
+Successful fits: 36
+Failed fits: 0
+
+Best model by AIC:
+- KBE | crisis: GJR_GARCH_11 (AIC=2732.713, BIC=2758.049)
+- KBE | full_sample: GJR_GARCH_11 (AIC=7037.416, BIC=7070.359)
+- KBE | post_crisis: GARCH_11 (AIC=3405.754, BIC=3429.659)
+- KBE | pre_crisis: EGARCH_11 (AIC=890.428, BIC=914.466)
+- SPY | crisis: EGARCH_11 (AIC=1969.666, BIC=1995.002)
+- SPY | full_sample: EGARCH_11 (AIC=5171.211, BIC=5204.154)
+- SPY | post_crisis: EGARCH_11 (AIC=2452.680, BIC=2481.366)
+- SPY | pre_crisis: EGARCH_11 (AIC=729.816, BIC=753.854)
+- XLF | crisis: EGARCH_11 (AIC=2651.466, BIC=2676.801)
+- XLF | full_sample: GJR_GARCH_11 (AIC=6758.603, BIC=6791.546)
+- XLF | post_crisis: GJR_GARCH_11 (AIC=3183.342, BIC=3212.028)
+- XLF | pre_crisis: EGARCH_11 (AIC=900.499, BIC=924.537)
+
+Best model by BIC:
+- KBE | crisis: GJR_GARCH_11 (AIC=2732.713, BIC=2758.049)
+- KBE | full_sample: GJR_GARCH_11 (AIC=7037.416, BIC=7070.359)
+- KBE | post_crisis: GARCH_11 (AIC=3405.754, BIC=3429.659)
+- KBE | pre_crisis: EGARCH_11 (AIC=890.428, BIC=914.466)
+- SPY | crisis: EGARCH_11 (AIC=1969.666, BIC=1995.002)
+- SPY | full_sample: EGARCH_11 (AIC=5171.211, BIC=5204.154)
+- SPY | post_crisis: EGARCH_11 (AIC=2452.680, BIC=2481.366)
+- SPY | pre_crisis: EGARCH_11 (AIC=729.816, BIC=753.854)
+- XLF | crisis: EGARCH_11 (AIC=2651.466, BIC=2676.801)
+- XLF | full_sample: GJR_GARCH_11 (AIC=6758.603, BIC=6791.546)
+- XLF | post_crisis: GARCH_11 (AIC=3187.794, BIC=3211.699)
+- XLF | pre_crisis: EGARCH_11 (AIC=900.499, BIC=924.537)
+
+GJR-GARCH downside asymmetry parameter gamma:
+- KBE | crisis: gamma=0.172716, approx_persistence=1.000000
+- KBE | full_sample: gamma=0.084944, approx_persistence=1.000000
+- KBE | post_crisis: gamma=0.038903, approx_persistence=0.988628
+- KBE | pre_crisis: gamma=0.082624, approx_persistence=0.979891
+- SPY | crisis: gamma=0.157479, approx_persistence=0.989445
+- SPY | full_sample: gamma=0.178033, approx_persistence=0.990891
+- SPY | post_crisis: gamma=0.219855, approx_persistence=0.972436
+- SPY | pre_crisis: gamma=0.177994, approx_persistence=0.933055
+- XLF | crisis: gamma=0.175482, approx_persistence=1.000000
+- XLF | full_sample: gamma=0.115239, approx_persistence=0.998424
+- XLF | post_crisis: gamma=0.084092, approx_persistence=0.983490
+- XLF | pre_crisis: gamma=0.089391, approx_persistence=0.953017

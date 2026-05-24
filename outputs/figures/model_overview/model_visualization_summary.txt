@@ -1,0 +1,28 @@
+Model visualization summary
+===========================
+
+Purpose:
+These figures summarize the in-sample GARCH-family results and post-model diagnostics.
+They are designed for report-level interpretation before moving to rolling forecast evaluation and ML benchmarks.
+
+Main interpretation guide:
+- conditional_volatility_crisis_* shows how each GARCH-family model tracks crisis volatility.
+- gjr_gamma_by_period shows whether downside-risk asymmetry changes across periods.
+- gjr_persistence_by_period shows whether volatility shocks become more persistent during the crisis.
+- aic_delta_crisis and bic_delta_crisis show in-sample model-selection differences during the crisis.
+- diagnostic_pass_count_crisis and remaining_residual_problem_counts summarize post-GARCH diagnostic adequacy.
+
+Generated figures: 13
+- outputs/figures/model_overview/conditional_volatility_crisis_SPY.png
+- outputs/figures/model_overview/conditional_volatility_crisis_XLF.png
+- outputs/figures/model_overview/conditional_volatility_crisis_KBE.png
+- outputs/figures/model_overview/gjr_volatility_vs_absolute_return_crisis_SPY.png
+- outputs/figures/model_overview/gjr_volatility_vs_absolute_return_crisis_XLF.png
+- outputs/figures/model_overview/gjr_volatility_vs_absolute_return_crisis_KBE.png
+- outputs/figures/model_overview/gjr_gamma_by_period.png
+- outputs/figures/model_overview/gjr_persistence_by_period.png
+- outputs/figures/model_overview/aic_delta_crisis.png
+- outputs/figures/model_overview/bic_delta_crisis.png
+- outputs/figures/model_overview/diagnostic_pass_count_crisis.png
+- outputs/figures/model_overview/remaining_residual_problem_counts.png
+- outputs/figures/model_overview/best_aic_model_table.png

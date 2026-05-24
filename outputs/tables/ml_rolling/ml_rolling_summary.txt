@@ -1,0 +1,40 @@
+Rolling machine-learning volatility forecast summary
+=======================================================
+
+Purpose:
+This file summarizes adaptive rolling-window machine-learning benchmarks for next-day squared-return volatility forecasting.
+
+Forecast target:
+- target_squared_return_t_plus_1
+
+Design:
+- Test starts at: 2007-07-01
+- Rolling train window: 500 observations
+- Minimum train size: 250 observations
+- Refit frequency: every 5 test observations
+- Split is chronological; no random shuffling is used.
+
+Feature count:
+- 40 numeric predictive features
+
+Successful prediction rows:
+- 24912
+
+Main reading rules:
+- Lower RMSE, MAE, and QLIKE indicate better forecast performance.
+- QLIKE is the preferred volatility forecast loss.
+- Naive_Rolling22 is a rolling-volatility benchmark.
+- Rolling ML results test adaptive forecasting, not structural interpretation.
+
+Best models by QLIKE, overall:
+- asset_specific_rolling | asset=KBE: RandomForest (QLIKE=1.561401, RMSE=27.945442, MAE=10.647221)
+- asset_specific_rolling | asset=SPY: RandomForest (QLIKE=1.643141, RMSE=8.060456, MAE=2.870882)
+- asset_specific_rolling | asset=XLF: RandomForest (QLIKE=1.674277, RMSE=22.866348, MAE=9.200400)
+
+Best models by QLIKE, by test period:
+- asset_specific_rolling | asset=KBE | period=crisis: RandomForest (QLIKE=1.454967)
+- asset_specific_rolling | asset=KBE | period=post_crisis: RandomForest (QLIKE=1.622360)
+- asset_specific_rolling | asset=SPY | period=crisis: Naive_Rolling22 (QLIKE=1.594690)
+- asset_specific_rolling | asset=SPY | period=post_crisis: RandomForest (QLIKE=1.667903)
+- asset_specific_rolling | asset=XLF | period=crisis: RandomForest (QLIKE=1.546883)
+- asset_specific_rolling | asset=XLF | period=post_crisis: RandomForest (QLIKE=1.747239)

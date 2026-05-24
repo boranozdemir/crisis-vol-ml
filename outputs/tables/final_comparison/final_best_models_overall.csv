@@ -1,0 +1,4 @@
+experiment,level,model_family,scope,trained_asset,Asset,Period,model,n_obs,rmse,mae,qlike,actual_mean,prediction_mean
+GARCH_Rolling,overall,GARCH,asset_specific_rolling,KBE,KBE,overall,GJR_GARCH_11,1384,28.24321564848764,10.737037096338112,1.522167968452087,10.083078202879316,10.36167003995303
+ML_Strict_PreCrisis,overall,Benchmark,asset_specific,SPY,SPY,overall,Naive_Rolling22,1384,8.031967008592336,2.7764613332944097,1.4992680206746765,2.6034217390625787,2.6061125362364432
+GARCH_Rolling,overall,GARCH,asset_specific_rolling,XLF,XLF,overall,GJR_GARCH_11,1384,22.74647211762228,8.88745270628855,1.6301234062118135,8.51254702495501,8.768922441502088

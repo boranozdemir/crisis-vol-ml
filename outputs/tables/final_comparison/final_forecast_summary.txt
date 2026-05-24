@@ -1,0 +1,56 @@
+Final forecast comparison summary
+=========================================
+
+Purpose:
+This file combines strict ML, rolling ML, and rolling GARCH-family forecast performance results into one comparison layer.
+
+Main reading rules:
+- Lower RMSE, MAE, and QLIKE indicate better forecast performance.
+- QLIKE is treated as the preferred volatility forecast loss.
+- Strict ML tests crisis-regime generalization from pre-crisis training.
+- Rolling ML and rolling GARCH test adaptive one-step-ahead forecasting.
+
+Input files found:
+- ML_Strict_PreCrisis: overall=yes, by_period=yes
+- ML_Rolling: overall=yes, by_period=yes
+- GARCH_Rolling: overall=yes, by_period=yes
+
+Combined rows:
+- Overall rows: 66
+- By-period rows: 132
+
+Best models by QLIKE, overall:
+- asset=KBE: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.522168, RMSE=28.243216, MAE=10.737037)
+- asset=SPY: ML_Strict_PreCrisis | Naive_Rolling22 (family=Benchmark, QLIKE=1.499268, RMSE=8.031967, MAE=2.776461)
+- asset=XLF: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.630123, RMSE=22.746472, MAE=8.887453)
+
+Best models by QLIKE, by test period:
+- asset=KBE | period=crisis: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.355217)
+- asset=KBE | period=post_crisis: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.617786)
+- asset=SPY | period=crisis: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.509723)
+- asset=SPY | period=post_crisis: ML_Strict_PreCrisis | Naive_Rolling22 (family=Benchmark, QLIKE=1.109666)
+- asset=XLF | period=crisis: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.452296)
+- asset=XLF | period=post_crisis: GARCH_Rolling | GJR_GARCH_11 (family=GARCH, QLIKE=1.731970)
+
+Best models by experiment, overall:
+- GARCH_Rolling | asset=KBE: GJR_GARCH_11 (QLIKE=1.522168)
+- GARCH_Rolling | asset=SPY: GJR_GARCH_11 (QLIKE=1.594421)
+- GARCH_Rolling | asset=XLF: GJR_GARCH_11 (QLIKE=1.630123)
+- ML_Rolling | asset=KBE: RandomForest (QLIKE=1.561401)
+- ML_Rolling | asset=SPY: RandomForest (QLIKE=1.643141)
+- ML_Rolling | asset=XLF: RandomForest (QLIKE=1.674277)
+- ML_Strict_PreCrisis | asset=KBE: Naive_Rolling22 (QLIKE=2.699103)
+- ML_Strict_PreCrisis | asset=SPY: Naive_Rolling22 (QLIKE=1.499268)
+- ML_Strict_PreCrisis | asset=XLF: Naive_Rolling22 (QLIKE=2.498891)
+
+Rolling GARCH vs rolling ML, overall:
+- qlike_diff_ml_minus_garch > 0 means the best rolling GARCH model has lower QLIKE than the best rolling ML model.
+- asset=KBE: best GARCH=GJR_GARCH_11 (QLIKE=1.522168), best ML=RandomForest (QLIKE=1.561401), winner=GARCH_Rolling, diff=0.039233
+- asset=SPY: best GARCH=GJR_GARCH_11 (QLIKE=1.594421), best ML=RandomForest (QLIKE=1.643141), winner=GARCH_Rolling, diff=0.048719
+- asset=XLF: best GARCH=GJR_GARCH_11 (QLIKE=1.630123), best ML=RandomForest (QLIKE=1.674277), winner=GARCH_Rolling, diff=0.044153
+
+Recommended interpretation:
+- Use GARCH-family models, especially GJR-GARCH, for structural interpretation of persistence and downside asymmetry.
+- Use the strict ML experiment as a regime-shift stress test.
+- Use rolling ML as the adaptive machine-learning benchmark.
+- The final forecast conclusion should primarily rely on rolling out-of-sample QLIKE comparisons.

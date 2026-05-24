@@ -1,0 +1,16 @@
+feature,description
+return_t,Current daily log return scaled by 100.
+abs_return_t,Absolute value of current daily return.
+squared_return_t,Current squared return; daily volatility proxy.
+negative_return_dummy_t,Equals 1 if current return is negative.
+negative_squared_return_t,Squared return interacted with negative-return dummy.
+return_lag_k,Lagged daily returns.
+squared_return_lag_k,Lagged squared returns.
+rolling_mean_squared_return_wd,Rolling average of squared returns over w trading days.
+rolling_volatility_wd,Square root of rolling mean squared returns.
+rolling_downside_squared_return_wd,Rolling average of squared returns on negative-return days.
+rolling_negative_share_wd,Share of negative-return days over the rolling window.
+crisis_dummy,Equals 1 during the 2007-07-01 to 2009-06-30 crisis window.
+negative_x_crisis,Negative-return dummy interacted with crisis dummy.
+negative_squared_x_crisis,Negative squared return interacted with crisis dummy.
+target_squared_return_t_plus_1,Next-day squared return used as the volatility forecasting target.
