@@ -1,438 +1,107 @@
-"""
-diagnostics.py
-
-Runs first-stage statistical diagnostics for the 2008 mortgage crisis volatility project.
-
-Inputs expected from data_fetcher.py:
-    data/processed/log_returns.csv
-    data/processed/volatility_proxy.csv
-    data/processed/panel_dataset.csv
-
-Outputs:
-    outputs/tables/diagnostics/descriptive_statistics_full_sample.csv
-    outputs/tables/diagnostics/descriptive_statistics_by_period.csv
-    outputs/tables/diagnostics/pre_model_diagnostics_full_sample.csv
-    outputs/tables/diagnostics/pre_model_diagnostics_by_period.csv
-    outputs/tables/diagnostics/diagnostics_summary.txt
-
-Run from project root:
-    python src/diagnostics.py
-"""
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Iterable, Optional
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.stats import jarque_bera, kurtosis, skew
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.tsa.stattools import adfuller
 
-try:
-    from scipy.stats import jarque_bera, kurtosis, skew
-    from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
-    from statsmodels.tsa.stattools import adfuller, kpss
-except ImportError as exc:  # pragma: no cover
-    raise ImportError(
-        "diagnostics.py requires scipy and statsmodels. "
-        "Install them with: pip install scipy statsmodels"
-    ) from exc
+# Suppress warnings for cleaner output
+warnings.filterwarnings("ignore")
 
+# Project configuration
+PROCESSED_DIR = Path("data/processed")
+OUTPUT_DIR = Path("outputs/tables/diagnostics")
+ANNUALIZATION_FACTOR = 252
 
-CRISIS_WINDOWS: Dict[str, tuple[str, str]] = {
+CRISIS_WINDOWS = {
     "pre_crisis": ("2005-01-01", "2007-06-30"),
     "crisis": ("2007-07-01", "2009-06-30"),
     "post_crisis": ("2009-07-01", "2012-12-31"),
 }
 
-PERIOD_ORDER = ["pre_crisis", "crisis", "post_crisis"]
-
-
-@dataclass(frozen=True)
-class DiagnosticsConfig:
-    processed_dir: Path = Path("data/processed")
-    output_dir: Path = Path("outputs/tables/diagnostics")
-    ljung_box_lags: tuple[int, ...] = (10, 20)
-    arch_lags: int = 10
-    min_observations: int = 60
-    annualization_factor: int = 252
-
-
-def ensure_output_dir(config: DiagnosticsConfig) -> None:
-    config.output_dir.mkdir(parents=True, exist_ok=True)
-
-
-def load_time_series(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(f"Missing file: {path}. Run data_fetcher.py first.")
-
-    df = pd.read_csv(path, index_col="Date", parse_dates=True)
-    return df.sort_index()
-
-
-def load_panel(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(f"Missing file: {path}. Run data_fetcher.py first.")
-
-    panel = pd.read_csv(path, parse_dates=["Date"])
-    return panel.sort_values(["Asset", "Date"])
-
-
-def safe_series(values: pd.Series | np.ndarray) -> pd.Series:
-    """Return a clean numeric series without NaN or infinite values."""
-    series = pd.Series(values).astype(float)
-    series = series.replace([np.inf, -np.inf], np.nan).dropna()
-    return series
-
-
-def safe_pvalue(value: float | np.ndarray | tuple | list) -> float:
-    """Convert test p-values to a clean float."""
-    if isinstance(value, (tuple, list, np.ndarray)):
-        value = value[0]
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return np.nan
-
-
-def adf_test(series: pd.Series) -> dict[str, float | str]:
-    """Augmented Dickey-Fuller test. Null hypothesis: unit root / non-stationary."""
-    x = safe_series(series)
-
-    if len(x) < 25 or x.nunique() <= 1:
-        return {
-            "adf_stat": np.nan,
-            "adf_pvalue": np.nan,
-            "adf_used_lag": np.nan,
-            "adf_interpretation": "insufficient_data",
-        }
-
-    try:
-        result = adfuller(x, autolag="AIC")
-        pvalue = safe_pvalue(result[1])
-        interpretation = "stationary" if pvalue < 0.05 else "non_stationary"
-        return {
-            "adf_stat": float(result[0]),
-            "adf_pvalue": pvalue,
-            "adf_used_lag": int(result[2]),
-            "adf_interpretation": interpretation,
-        }
-    except Exception:
-        return {
-            "adf_stat": np.nan,
-            "adf_pvalue": np.nan,
-            "adf_used_lag": np.nan,
-            "adf_interpretation": "failed",
-        }
-
-
-def kpss_test(series: pd.Series) -> dict[str, float | str]:
-    """KPSS test. Null hypothesis: stationary around a constant."""
-    x = safe_series(series)
-
-    if len(x) < 25 or x.nunique() <= 1:
-        return {
-            "kpss_stat": np.nan,
-            "kpss_pvalue": np.nan,
-            "kpss_used_lag": np.nan,
-            "kpss_interpretation": "insufficient_data",
-        }
-
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = kpss(x, regression="c", nlags="auto")
-
-        pvalue = safe_pvalue(result[1])
-        interpretation = "stationary" if pvalue >= 0.05 else "non_stationary"
-        return {
-            "kpss_stat": float(result[0]),
-            "kpss_pvalue": pvalue,
-            "kpss_used_lag": int(result[2]),
-            "kpss_interpretation": interpretation,
-        }
-    except Exception:
-        return {
-            "kpss_stat": np.nan,
-            "kpss_pvalue": np.nan,
-            "kpss_used_lag": np.nan,
-            "kpss_interpretation": "failed",
-        }
-
-
-def ljung_box_pvalue(series: pd.Series, lag: int) -> float:
-    """Ljung-Box p-value. Null hypothesis: no autocorrelation up to the selected lag."""
-    x = safe_series(series)
-
-    if len(x) <= lag + 5 or x.nunique() <= 1:
-        return np.nan
-
-    try:
-        result = acorr_ljungbox(x, lags=[lag], return_df=True)
-        return float(result["lb_pvalue"].iloc[0])
-    except Exception:
-        return np.nan
-
-
-def arch_lm_pvalue(series: pd.Series, lags: int) -> float:
-    """ARCH-LM p-value. Null hypothesis: no remaining ARCH effect."""
-    x = safe_series(series)
-
-    if len(x) <= lags + 5 or x.nunique() <= 1:
-        return np.nan
-
-    try:
-        result = het_arch(x, nlags=lags)
-        return float(result[1])
-    except Exception:
-        return np.nan
-
-
-def jarque_bera_test(series: pd.Series) -> dict[str, float | str]:
-    """Jarque-Bera normality test. Null hypothesis: normal distribution."""
-    x = safe_series(series)
-
-    if len(x) < 8 or x.nunique() <= 1:
-        return {
-            "jb_stat": np.nan,
-            "jb_pvalue": np.nan,
-            "normality_interpretation": "insufficient_data",
-        }
-
-    try:
-        result = jarque_bera(x)
-        pvalue = safe_pvalue(result.pvalue)
-        interpretation = "normal_not_rejected" if pvalue >= 0.05 else "non_normal"
-        return {
-            "jb_stat": float(result.statistic),
-            "jb_pvalue": pvalue,
-            "normality_interpretation": interpretation,
-        }
-    except Exception:
-        return {
-            "jb_stat": np.nan,
-            "jb_pvalue": np.nan,
-            "normality_interpretation": "failed",
-        }
-
-
-def descriptive_statistics(
-    returns: pd.DataFrame,
-    config: DiagnosticsConfig,
-) -> pd.DataFrame:
-    rows = []
-
-    for asset in returns.columns:
-        x = safe_series(returns[asset])
-        if x.empty:
-            continue
-
-        rows.append(
-            {
-                "Asset": asset,
-                "n_obs": len(x),
-                "mean": x.mean(),
-                "median": x.median(),
-                "std": x.std(ddof=1),
-                "annualized_vol": x.std(ddof=1) * np.sqrt(config.annualization_factor),
-                "min": x.min(),
-                "max": x.max(),
-                "skewness": skew(x, bias=False),
-                "kurtosis_excess": kurtosis(x, fisher=True, bias=False),
-                "abs_return_mean": x.abs().mean(),
-                "squared_return_mean": x.pow(2).mean(),
-            }
-        )
-
-    return pd.DataFrame(rows)
-
-
-def descriptive_statistics_by_period(
-    panel: pd.DataFrame,
-    config: DiagnosticsConfig,
-) -> pd.DataFrame:
-    rows = []
-
-    for asset in sorted(panel["Asset"].unique()):
-        for period in PERIOD_ORDER:
-            subset = panel.loc[(panel["Asset"] == asset) & (panel["Period"] == period), "Return"]
-            x = safe_series(subset)
-            if len(x) < config.min_observations:
-                continue
-
-            rows.append(
-                {
-                    "Asset": asset,
-                    "Period": period,
-                    "n_obs": len(x),
-                    "mean": x.mean(),
-                    "median": x.median(),
-                    "std": x.std(ddof=1),
-                    "annualized_vol": x.std(ddof=1) * np.sqrt(config.annualization_factor),
-                    "min": x.min(),
-                    "max": x.max(),
-                    "skewness": skew(x, bias=False),
-                    "kurtosis_excess": kurtosis(x, fisher=True, bias=False),
-                    "abs_return_mean": x.abs().mean(),
-                    "squared_return_mean": x.pow(2).mean(),
-                }
-            )
-
-    return pd.DataFrame(rows)
-
-
-def pre_model_diagnostics_for_series(
-    series: pd.Series,
-    config: DiagnosticsConfig,
-) -> dict[str, float | str]:
-    x = safe_series(series)
+def calculate_core_diagnostics(series: pd.Series, prefix="") -> dict:
+    """Calculates only the critical diagnostic tests for a single time series."""
+    # Clean and mean-center the data
+    x = series.dropna().astype(float)
     x_centered = x - x.mean()
     x_squared = x_centered.pow(2)
 
-    row: dict[str, float | str] = {
-        "n_obs": len(x),
+    # Return empty dictionary if insufficient data
+    if len(x) < 60:  
+        return {}
+
+    # 1. Descriptive Statistics
+    results = {
+        f"{prefix}n_obs": len(x),
+        f"{prefix}annualized_vol": x.std(ddof=1) * np.sqrt(ANNUALIZATION_FACTOR),
+        f"{prefix}skewness": skew(x, bias=False),
+        f"{prefix}kurtosis_excess": kurtosis(x, fisher=True, bias=False),
     }
 
-    row.update(adf_test(x))
-    row.update(kpss_test(x))
-    row.update(jarque_bera_test(x))
+    # 2. Stationarity (ADF Test)
+    adf_res = adfuller(x, autolag="AIC")
+    results[f"{prefix}adf_pvalue"] = adf_res[1]
 
-    for lag in config.ljung_box_lags:
-        row[f"lb_return_pvalue_lag_{lag}"] = ljung_box_pvalue(x_centered, lag)
-        row[f"lb_squared_return_pvalue_lag_{lag}"] = ljung_box_pvalue(x_squared, lag)
+    # 3. Normality (Jarque-Bera)
+    jb_res = jarque_bera(x)
+    results[f"{prefix}jb_pvalue"] = jb_res.pvalue
 
-    row[f"arch_lm_pvalue_lag_{config.arch_lags}"] = arch_lm_pvalue(x_centered, config.arch_lags)
+    # 4. Volatility Clustering (Squared Ljung-Box Test only)
+    lb_res = acorr_ljungbox(x_squared, lags=[10], return_df=True)
+    results[f"{prefix}lb_squared_pvalue_lag10"] = float(lb_res["lb_pvalue"].iloc[0])
 
-    row["volatility_clustering_flag"] = (
-        "yes"
-        if any(
-            row.get(f"lb_squared_return_pvalue_lag_{lag}", np.nan) < 0.05
-            for lag in config.ljung_box_lags
-        )
-        or row.get(f"arch_lm_pvalue_lag_{config.arch_lags}", np.nan) < 0.05
-        else "no"
-    )
+    return results
 
-    return row
-
-
-def pre_model_diagnostics_full_sample(
-    returns: pd.DataFrame,
-    config: DiagnosticsConfig,
-) -> pd.DataFrame:
-    rows = []
-
-    for asset in returns.columns:
-        row = pre_model_diagnostics_for_series(returns[asset], config)
-        row["Asset"] = asset
-        rows.append(row)
-
-    columns = ["Asset"] + [col for col in rows[0].keys() if col != "Asset"] if rows else []
-    return pd.DataFrame(rows)[columns]
-
-
-def pre_model_diagnostics_by_period(
-    panel: pd.DataFrame,
-    config: DiagnosticsConfig,
-) -> pd.DataFrame:
-    rows = []
-
-    for asset in sorted(panel["Asset"].unique()):
-        for period in PERIOD_ORDER:
-            subset = panel.loc[(panel["Asset"] == asset) & (panel["Period"] == period), "Return"]
-            x = safe_series(subset)
-
-            if len(x) < config.min_observations:
-                continue
-
-            row = pre_model_diagnostics_for_series(x, config)
-            row["Asset"] = asset
-            row["Period"] = period
-            rows.append(row)
-
-    if not rows:
-        return pd.DataFrame()
-
-    columns = ["Asset", "Period"] + [col for col in rows[0].keys() if col not in {"Asset", "Period"}]
-    return pd.DataFrame(rows)[columns]
+def run_diagnostics():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Load data
+    returns_df = pd.read_csv(PROCESSED_DIR / "log_returns.csv", index_col="Date", parse_dates=True)
+    panel_df = pd.read_csv(PROCESSED_DIR / "panel_dataset.csv", parse_dates=["Date"])
+    
+    # --- 1. FULL SAMPLE ANALYSIS ---
+    full_sample_results = []
+    for asset in returns_df.columns:
+        stats = calculate_core_diagnostics(returns_df[asset])
+        stats["Asset"] = asset
+        
+        # Add the clustering flag based on Squared Ljung-Box
+        stats["Volatility_Clustering_Present"] = "Yes" if stats["lb_squared_pvalue_lag10"] < 0.05 else "No"
+        full_sample_results.append(stats)
+        
+    full_df = pd.DataFrame(full_sample_results)
+    
+    # Reorder columns for better readability
+    cols = ["Asset", "n_obs", "annualized_vol", "skewness", "kurtosis_excess", 
+            "adf_pvalue", "jb_pvalue", "lb_squared_pvalue_lag10", "Volatility_Clustering_Present"]
+    full_df = full_df[cols]
+    full_df.to_csv(OUTPUT_DIR / "core_diagnostics_full.csv", index=False)
 
 
-def save_table(df: pd.DataFrame, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
+    # --- 2. PERIOD-BASED (CRISIS) ANALYSIS ---
+    period_results = []
+    for asset in sorted(panel_df["Asset"].unique()):
+        for period in ["pre_crisis", "crisis", "post_crisis"]:
+            subset = panel_df[(panel_df["Asset"] == asset) & (panel_df["Period"] == period)]["Return"]
+            
+            stats = calculate_core_diagnostics(subset)
+            if stats:
+                stats["Asset"] = asset
+                stats["Period"] = period
+                period_results.append(stats)
 
+    period_df = pd.DataFrame(period_results)
+    
+    # Keep only the most critical metrics for the period comparison
+    period_cols = ["Asset", "Period", "n_obs", "annualized_vol", "skewness", "kurtosis_excess"]
+    period_df = period_df[period_cols]
+    period_df.to_csv(OUTPUT_DIR / "core_diagnostics_by_period.csv", index=False)
 
-def write_summary(
-    desc_full: pd.DataFrame,
-    desc_period: pd.DataFrame,
-    diag_full: pd.DataFrame,
-    diag_period: pd.DataFrame,
-    config: DiagnosticsConfig,
-) -> None:
-    summary_path = config.output_dir / "diagnostics_summary.txt"
-
-    lines = [
-        "Diagnostics summary",
-        "===================",
-        "",
-        "Purpose:",
-        "These diagnostics check whether the return series display the empirical patterns that motivate volatility modeling.",
-        "",
-        "Key reading rules:",
-        "- ADF p-value < 0.05 supports stationarity of returns.",
-        "- KPSS p-value >= 0.05 supports stationarity of returns.",
-        "- Jarque-Bera p-value < 0.05 suggests non-normal/heavy-tailed returns.",
-        "- Ljung-Box on returns checks mean autocorrelation.",
-        "- Ljung-Box on squared returns checks volatility clustering.",
-        "- ARCH-LM p-value < 0.05 suggests ARCH effects and motivates GARCH models.",
-        "",
-        "Full-sample diagnostics:",
-        diag_full.to_string(index=False),
-        "",
-        "Descriptive statistics by period:",
-        desc_period.to_string(index=False),
-        "",
-    ]
-
-    if not diag_period.empty:
-        lines.extend(
-            [
-                "Pre-crisis / crisis / post-crisis diagnostics:",
-                diag_period.to_string(index=False),
-                "",
-            ]
-        )
-
-    summary_path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def run_diagnostics(config: Optional[DiagnosticsConfig] = None) -> None:
-    config = config or DiagnosticsConfig()
-    ensure_output_dir(config)
-
-    returns = load_time_series(config.processed_dir / "log_returns.csv")
-    panel = load_panel(config.processed_dir / "panel_dataset.csv")
-
-    desc_full = descriptive_statistics(returns, config)
-    desc_period = descriptive_statistics_by_period(panel, config)
-    diag_full = pre_model_diagnostics_full_sample(returns, config)
-    diag_period = pre_model_diagnostics_by_period(panel, config)
-
-    save_table(desc_full, config.output_dir / "descriptive_statistics_full_sample.csv")
-    save_table(desc_period, config.output_dir / "descriptive_statistics_by_period.csv")
-    save_table(diag_full, config.output_dir / "pre_model_diagnostics_full_sample.csv")
-    save_table(diag_period, config.output_dir / "pre_model_diagnostics_by_period.csv")
-
-    write_summary(desc_full, desc_period, diag_full, diag_period, config)
-
-    print(f"Diagnostics tables saved to: {config.output_dir}")
-    print(f"Summary file saved to: {config.output_dir / 'diagnostics_summary.txt'}")
-
-
-def main() -> None:
-    run_diagnostics()
-
+    print("Cleaned diagnostic reports generated successfully:")
+    print("- core_diagnostics_full.csv (For GARCH motivation via Squared Ljung-Box)")
+    print("- core_diagnostics_by_period.csv (For crisis period volatility comparison)")
 
 if __name__ == "__main__":
-    main()
+    run_diagnostics()
