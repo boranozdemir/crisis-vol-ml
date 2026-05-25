@@ -2,6 +2,7 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -97,8 +98,27 @@ def create_visualizations():
     plt.savefig(OUTPUT_DIR / "05_return_correlation.png", dpi=300)
     plt.close()
 
+    # 6. 22-Day Rolling Volatility (Annualized)
+    # Smooths out the noise of squared returns to clearly show the crisis peak.
+    # 22 days roughly equals one trading month.
+    plt.figure(figsize=(12, 6))
+    ax = plt.gca()
+    
+    # Calculate 22-day rolling standard deviation and annualize it (sqrt(252))
+    for col in returns.columns:
+        rolling_vol = returns[col].rolling(window=22).std() * np.sqrt(252)
+        ax.plot(returns.index, rolling_vol, linewidth=1.2, label=col)
+    
+    add_crisis_shade(ax)
+    ax.set_title("22-Day Rolling Volatility (Annualized Realized Volatility)", fontsize=14, fontweight='bold')
+    ax.set_ylabel("Annualized Volatility")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(OUTPUT_DIR / "06_rolling_volatility_22d.png", dpi=300)
+    plt.close()
+
     print(f"Data visualizations successfully saved to: {OUTPUT_DIR}")
-    print("Files created: 01_prices_overview, 02_returns_clustering, 03_volatility_proxy, 04_return_distributions, 05_return_correlation")
+    print("Files created: 01_prices_overview, 02_returns_clustering, 03_volatility_proxy, 04_return_distributions, 05_return_correlation, 06_rolling_volatility_22d")
 
 if __name__ == "__main__":
     create_visualizations()
