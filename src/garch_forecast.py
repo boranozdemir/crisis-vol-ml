@@ -1,14 +1,9 @@
-import warnings
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from arch import arch_model
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-# Suppress warnings
-warnings.filterwarnings("ignore")
 
 # Project configuration
 PROCESSED_DIR = Path("data/processed")

@@ -1,14 +1,9 @@
-import warnings
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from arch import arch_model
 from statsmodels.stats.diagnostic import acorr_ljungbox
-
-# Suppress warnings for cleaner console output
-warnings.filterwarnings("ignore")
 
 # Project configuration
 PROCESSED_DIR = Path("data/processed")

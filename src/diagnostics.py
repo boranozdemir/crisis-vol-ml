@@ -1,15 +1,10 @@
-import warnings
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import jarque_bera, kurtosis, skew
 from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
 from statsmodels.tsa.stattools import adfuller
-
-# Suppress warnings for cleaner output
-warnings.filterwarnings("ignore")
 
 # Project configuration
 PROCESSED_DIR = Path("data/processed")
@@ -131,7 +126,7 @@ def run_diagnostics():
                 period_results.append(stats)
 
     period_df = pd.DataFrame(period_results)
-    # Reorder and filter columns for the period breakdown
+    # filter columns for the period breakdown
     period_cols = ["Asset", "Period", "Ann. Vol (%)", "Skewness", "Excess Kurtosis"]
     period_df = period_df[period_cols]
     
