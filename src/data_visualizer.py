@@ -14,10 +14,13 @@ OUTPUT_DIR = Path("outputs/data_overview")
 CRISIS_START = "2007-07-01"
 CRISIS_END = "2009-06-30"
 
+# Professional Corporate Palette: Navy, Burgundy/Dark Red, Dark Gray
+CUSTOM_PALETTE = ['#1f497d', '#8b0000', '#595959']
+
 def add_crisis_shade(ax):
     """Adds a gray shaded region to highlight the 2008 mortgage crisis."""
     ax.axvspan(pd.Timestamp(CRISIS_START), pd.Timestamp(CRISIS_END), 
-               color='gray', alpha=0.2, label='Crisis Period (2007-2009)')
+               color='gray', alpha=0.15, label='Crisis Period (2007-2009)')
 
 def create_visualizations():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,14 +30,15 @@ def create_visualizations():
     returns = pd.read_csv(PROCESSED_DIR / "log_returns.csv", index_col="Date", parse_dates=True)
     vol_proxy = pd.read_csv(PROCESSED_DIR / "volatility_proxy.csv", index_col="Date", parse_dates=True)
 
-    # Set a clean, academic plotting style
-    sns.set_theme(style="whitegrid", palette="muted")
+    # Set a clean, academic plotting style without overriding our custom colors
+    sns.set_theme(style="whitegrid")
 
     # 1. Adjusted Close Prices (All Assets Together)
     plt.figure(figsize=(12, 6))
     ax = plt.gca()
-    for col in prices.columns:
-        ax.plot(prices.index, prices[col], linewidth=1.5, label=col)
+    for i, col in enumerate(prices.columns):
+        # Apply custom colors sequentially
+        ax.plot(prices.index, prices[col], linewidth=1.5, label=col, color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)])
     
     add_crisis_shade(ax)
     ax.set_title("Adjusted Close Prices (SPY, XLF, BKX)", fontsize=14, fontweight='bold')
@@ -47,7 +51,7 @@ def create_visualizations():
     # 2. Daily Log Returns (Subplots for comparison)
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
     for i, asset in enumerate(returns.columns):
-        axes[i].plot(returns.index, returns[asset], color=sns.color_palette()[i], linewidth=0.8)
+        axes[i].plot(returns.index, returns[asset], color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], linewidth=0.8)
         add_crisis_shade(axes[i])
         axes[i].set_title(f"Daily Log Returns: {asset}")
         axes[i].set_ylabel("Return")
@@ -59,7 +63,7 @@ def create_visualizations():
     # 3. Squared Returns / Volatility Proxy (Subplots)
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
     for i, asset in enumerate(vol_proxy.columns):
-        axes[i].plot(vol_proxy.index, vol_proxy[asset], color=sns.color_palette("dark")[i], linewidth=0.8)
+        axes[i].plot(vol_proxy.index, vol_proxy[asset], color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], linewidth=0.8)
         add_crisis_shade(axes[i])
         axes[i].set_title(f"Volatility Proxy (Squared Returns): {asset}")
         axes[i].set_ylabel("Squared Return")
@@ -70,13 +74,12 @@ def create_visualizations():
 
     # 4. Return Distributions (Histograms showing heavy tails)
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     for i, asset in enumerate(returns.columns):
         data = returns[asset].dropna()
         
-        # Plot the empirical histogram and KDE (Kernel Density Estimate)
+        # Plot the empirical histogram and KDE (Kernel Density Estimate) using the custom palette
         sns.histplot(data, bins=60, stat='density', kde=True, ax=axes[i], 
-                     color=sns.color_palette()[i], alpha=0.5, label='Empirical KDE')
+                     color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], alpha=0.6, label='Empirical KDE')
         
         # Calculate mean and standard deviation for the Normal Overlay
         mu, std = data.mean(), data.std()
@@ -88,7 +91,7 @@ def create_visualizations():
         # Calculate the theoretical normal PDF (Probability Density Function)
         p = norm.pdf(x, mu, std)
         
-        # Plot the Normal curve overlay
+        # Plot the Normal curve overlay in solid black for sharp professional contrast
         axes[i].plot(x, p, 'k', linewidth=2, linestyle='--', label='Normal Dist.')
         
         axes[i].set_title(f"Distribution: {asset}")
@@ -107,8 +110,10 @@ def create_visualizations():
     plt.figure(figsize=(8, 6))
     corr_matrix = returns.corr()
     
-    # Using coolwarm palette for financial correlations (blue=low/neg, red=high/pos)
-    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1, 
+    # Custom colormap: Navy Blue (Negative/Low) -> White (Zero) -> Burgundy/Dark Red (Positive/High)
+    custom_cmap = sns.blend_palette(['#1f497d', '#ffffff', '#8b0000'], as_cmap=True)
+    
+    sns.heatmap(corr_matrix, annot=True, cmap=custom_cmap, vmin=-1, vmax=1, 
                 fmt=".2f", square=True, linewidths=.5, cbar_kws={"shrink": .8})
     
     plt.title("Return Correlation Matrix (SPY, XLF, BKX)", fontsize=14, fontweight='bold', pad=15)
@@ -118,14 +123,13 @@ def create_visualizations():
 
     # 6. 22-Day Rolling Volatility (Annualized)
     # Smooths out the noise of squared returns to clearly show the crisis peak.
-    # 22 days roughly equals one trading month.
     plt.figure(figsize=(12, 6))
     ax = plt.gca()
     
     # Calculate 22-day rolling standard deviation and annualize it (sqrt(252))
-    for col in returns.columns:
+    for i, col in enumerate(returns.columns):
         rolling_vol = returns[col].rolling(window=22).std() * np.sqrt(252)
-        ax.plot(returns.index, rolling_vol, linewidth=1.2, label=col)
+        ax.plot(returns.index, rolling_vol, linewidth=1.2, label=col, color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)])
     
     add_crisis_shade(ax)
     ax.set_title("22-Day Rolling Volatility (Annualized Realized Volatility)", fontsize=14, fontweight='bold')

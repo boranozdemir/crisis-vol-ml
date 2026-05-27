@@ -14,8 +14,8 @@ warnings.filterwarnings("ignore")
 PROCESSED_DIR = Path("data/processed")
 OUTPUT_DIR = Path("outputs/forecasts")
 
-# --- EXPANDING WINDOW OOS DATES ---
-EVAL_START_DATE = "2008-09-01" # Lehman Brothers Çöküşü
+# --- EXPANDING WINDOW OOS DATES (VERİ KISITLAMASI OLMADAN) ---
+EVAL_START_DATE = "2007-07-01" # Subprime krizinin ilk dalgaları
 EVAL_END_DATE = "2009-12-31"   # Krizin ve toparlanmanın sonu
 
 def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
@@ -70,7 +70,8 @@ def plot_forecast_comparison(asset: str, actual_var: pd.Series, best_forecast: p
     plt.axvline(pd.Timestamp(EVAL_START_DATE), color='black', linestyle='-.', linewidth=2, label="Rolling OOS Start")
     plt.axvspan(pd.Timestamp(EVAL_START_DATE), pd.Timestamp(EVAL_END_DATE), color='darkorange', alpha=0.1, label='OOS Evaluation Window')
     
-    plt.xlim(pd.Timestamp("2008-01-01"), pd.Timestamp("2010-06-30"))
+    # Grafiğin görsel odağını tüm kriz periyodunu kapsayacak şekilde genişlettik
+    plt.xlim(pd.Timestamp("2006-07-01"), pd.Timestamp("2010-12-31"))
     
     plt.title(f"1-Step Ahead Expanding Window Forecast: {asset}", fontsize=14, fontweight='bold')
     plt.ylabel("Variance")
@@ -138,7 +139,6 @@ def run_forecast_evaluation():
             
             actual_eval = actual_proxy.loc[oos_dates]
             
-            # Eğer tüm tahminler NaN kaldıysa veya patladıysa direkt Inf ata
             if daily_forecasts.isna().all() or np.isinf(daily_forecasts).any() or daily_forecasts.max() > 1e6:
                  rmse = np.inf
                  mae = np.inf
@@ -157,13 +157,12 @@ def run_forecast_evaluation():
             })
 
         asset_df = pd.DataFrame([r for r in forecast_records if r["Asset"] == asset])
-        # Kazananı bulurken patlamamış (inf olmayan) en küçük değeri seç
         valid_models = asset_df[asset_df['OOS QLIKE'] != np.inf]
         
         if not valid_models.empty:
             best_model_name = valid_models.loc[valid_models['OOS QLIKE'].idxmin()]['Model']
         else:
-            best_model_name = "GARCH(1,1)" # Hepsi patlarsa fallback
+            best_model_name = "GARCH(1,1)" 
 
         plot_forecast_comparison(
             asset=asset, 
