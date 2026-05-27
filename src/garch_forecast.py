@@ -5,22 +5,20 @@ import matplotlib.pyplot as plt
 from arch import arch_model
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-# Project configuration
+# Define main paths for data and outputs
 PROCESSED_DIR = Path("data/processed")
 OUTPUT_DIR = Path("outputs/forecasts")
 
-# --- EXPANDING WINDOW OOS DATES (VERİ KISITLAMASI OLMADAN) ---
-EVAL_START_DATE = "2007-07-01" # Subprime krizinin ilk dalgaları
-EVAL_END_DATE = "2009-12-31"   # Krizin ve toparlanmanın sonu
+# Expanding Window Out-of-Sample (OOS) Timeline
+EVAL_START_DATE = "2007-07-01" # Onset of the subprime mortgage crisis
+EVAL_END_DATE = "2009-12-31"   # Tail end of the crisis and recovery phase
 
 def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
     df_display = df.copy()
     
-    # Kırılmaz Formatta "Diverged" (Patlama) Filtresi
     for col in df_display.columns:
         if pd.api.types.is_numeric_dtype(df_display[col]):
             def format_metric(x):
-                # Eğer değer NaN, Sonsuz veya 1 Milyondan büyük (Patlamış) ise:
                 if pd.isna(x) or np.isinf(x) or x > 1e6:
                     return "∞ (Diverged)"
                 return f"{x:.4f}"
@@ -29,7 +27,6 @@ def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
 
     num_cols = len(df.columns)
     num_rows = len(df)
-    
     fig_width = max(10, num_cols * 1.5) 
     fig_height = max(3, num_rows * 0.6 + 1.5) 
     
@@ -56,6 +53,7 @@ def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
     plt.close()
 
 def plot_forecast_comparison(asset: str, actual_var: pd.Series, best_forecast: pd.Series, base_forecast: pd.Series, best_name: str):
+    """Plots the actual realized volatility proxy against competing OOS forecasts."""
     plt.figure(figsize=(12, 6))
     
     plt.plot(actual_var.index, actual_var, color='gray', alpha=0.3, linewidth=1, label="Actual Proxy ($r_t^2$)")
@@ -64,8 +62,6 @@ def plot_forecast_comparison(asset: str, actual_var: pd.Series, best_forecast: p
     
     plt.axvline(pd.Timestamp(EVAL_START_DATE), color='black', linestyle='-.', linewidth=2, label="Rolling OOS Start")
     plt.axvspan(pd.Timestamp(EVAL_START_DATE), pd.Timestamp(EVAL_END_DATE), color='darkorange', alpha=0.1, label='OOS Evaluation Window')
-    
-    # Grafiğin görsel odağını tüm kriz periyodunu kapsayacak şekilde genişlettik
     plt.xlim(pd.Timestamp("2006-07-01"), pd.Timestamp("2010-12-31"))
     
     plt.title(f"1-Step Ahead Expanding Window Forecast: {asset}", fontsize=14, fontweight='bold')
@@ -76,6 +72,7 @@ def plot_forecast_comparison(asset: str, actual_var: pd.Series, best_forecast: p
     plt.close()
 
 def calculate_qlike(actual: pd.Series, forecast: pd.Series) -> float:
+    """Calculates the QLIKE loss function, strictly penalizing variance under-prediction."""
     eps = 1e-6
     forecast_safe = np.maximum(forecast, eps)
     actual_safe = np.maximum(actual, eps)
@@ -99,8 +96,8 @@ def run_forecast_evaluation():
 
     for asset in returns_df.columns:
         print(f"\n{'='*40}")
-        print(f"--- Running 1-Step Ahead Expanding Window OOS Forecast for {asset} ---")
-        print(f"This requires fitting models day-by-day. Please wait...")
+        print(f"--- Running Expanding Window OOS Forecast for {asset} ---")
+        print(f"Fitting models day-by-day. This requires heavy computation, please wait...")
         
         y = returns_df[asset].dropna()
         actual_proxy = y ** 2
@@ -116,24 +113,29 @@ def run_forecast_evaluation():
             daily_forecasts = pd.Series(index=oos_dates, dtype=float)
             
             for date in oos_dates:
+                # Isolate data strictly prior to the current forecast date
                 train_y = y.loc[y.index < date]
                 
                 try:
                     am = arch_model(train_y, mean="Constant", vol=specs["vol"], p=specs["p"], o=specs["o"], q=specs["q"], dist="t", rescale=True)
                     res = am.fit(disp="off")
                     
+                    # Generate 1-step ahead prediction
                     fcast = res.forecast(horizon=1, reindex=False)
                     pred_var = (np.sqrt(fcast.variance.iloc[-1, 0]) / res.scale) ** 2
                     daily_forecasts[date] = pred_var
                     
                 except Exception:
+                    # Log NaN to trigger forward-fill if optimization fails
                     daily_forecasts[date] = np.nan
             
+            # Patch mid-crisis optimization failures with the last known valid forecast
             daily_forecasts = daily_forecasts.ffill().bfill()
             asset_forecasts[name] = daily_forecasts
             
             actual_eval = actual_proxy.loc[oos_dates]
             
+            # If the model completely broke down during the window, assign infinite penalties
             if daily_forecasts.isna().all() or np.isinf(daily_forecasts).any() or daily_forecasts.max() > 1e6:
                  rmse = np.inf
                  mae = np.inf
@@ -152,12 +154,14 @@ def run_forecast_evaluation():
             })
 
         asset_df = pd.DataFrame([r for r in forecast_records if r["Asset"] == asset])
+        
+        # Identify the best performing model (lowest QLIKE) that didn't diverge
         valid_models = asset_df[asset_df['OOS QLIKE'] != np.inf]
         
         if not valid_models.empty:
             best_model_name = valid_models.loc[valid_models['OOS QLIKE'].idxmin()]['Model']
         else:
-            best_model_name = "GARCH(1,1)" 
+            best_model_name = "GARCH(1,1)" # Fallback to vanilla GARCH if all complex models fail
 
         plot_forecast_comparison(
             asset=asset, 
@@ -176,7 +180,7 @@ def run_forecast_evaluation():
         save_dataframe_as_image(df_subset, f"{asset}_expanding_forecast_evaluation.png", f"{asset} 1-Step Ahead Expanding Forecast")
 
     print(f"\n{'='*40}")
-    print(f"Expanding Window Forecasting complete! Results and plots saved to {OUTPUT_DIR}")
+    print(f"Expanding Window Forecasting successfully completed! Results exported to {OUTPUT_DIR}")
 
 if __name__ == "__main__":
     run_forecast_evaluation()
