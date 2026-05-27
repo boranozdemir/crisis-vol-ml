@@ -1,48 +1,34 @@
-# Crisis Volatility Forecasting with GARCH and Machine Learning
+# Crisis Volatility Forecasting with GARCH
 
 ## Overview
+This project investigates volatility dynamics during the 2008 Subprime Mortgage Crisis using rigorous financial econometrics. The objective is to evaluate how extreme market shocks impact future volatility across a hierarchical market structure: the broad equity market, the financial sector, and the banking sector epicenter. We compare symmetric GARCH models with asymmetric specifications (GJR-GARCH, EGARCH) using a 1-step ahead expanding-window out-of-sample (OOS) forecasting framework.
 
-This project studies volatility dynamics during the 2008 mortgage crisis using financial econometrics and machine learning methods. The main focus is on whether negative market shocks had a stronger effect on future volatility during the crisis, especially in the U.S. financial and banking sectors.
-
-The project combines classical GARCH-family models with modern machine learning benchmarks. GARCH and GJR-GARCH models are used to capture volatility clustering and asymmetric shock effects, while machine learning models are used as flexible forecasting benchmarks for one-step-ahead volatility prediction.
-
-The empirical analysis is based on daily market data for broad market and financial sector assets around the 2008 crisis period.
-
----
-
-## Research Question
-
-The main research question is:
-
-> Did the 2008 mortgage crisis strengthen the asymmetric impact of negative returns on future volatility in the U.S. financial sector?
-
-A secondary research question is:
-
-> Can machine learning models improve one-step-ahead volatility forecasts relative to GARCH-family models during crisis and post-crisis periods?
-
-The project does not attempt to forecast the direction of asset prices. Instead, it focuses on conditional volatility and risk.
-
----
-
-## Motivation
-
-Financial crises are periods in which volatility becomes highly persistent and market reactions to negative news may become stronger. During the 2008 mortgage crisis, financial institutions, banks, and real estate-related assets were directly exposed to severe stress. This makes the crisis period a natural setting for studying asymmetric volatility.
-
-A standard GARCH model captures volatility clustering, but it treats positive and negative shocks symmetrically. In financial markets, this assumption is often restrictive because negative returns may increase future volatility more than positive returns of the same magnitude.
-
-The GJR-GARCH model addresses this issue by allowing negative shocks to have an additional effect on conditional variance. In this project, the asymmetry parameter is interpreted as a measure of crisis-related downside risk sensitivity.
-
-Machine learning models are added as forecasting benchmarks. Unlike GARCH models, they do not impose a specific parametric volatility structure. Instead, they learn the relationship between lagged return-based features and future realized volatility proxies.
-
----
+## Research Questions
+1. **The Leverage Effect:** Did the 2008 crisis amplify the asymmetric impact of negative returns on future volatility across different market levels?
+2. **Parsimony vs. Complexity:** Do complex asymmetric models consistently outperform simpler, symmetric models during chaotic market stress, or does parsimony offer better robustness?
 
 ## Data
+The asset universe tracks volatility contagion from the macro-economy down to the micro-level epicenter:
+* **SPY (Macro):** SPDR S&P 500 ETF (Broad U.S. Equity Market)
+* **XLF (Meso):** Financial Select Sector SPDR (Financial Sector)
+* **^BKX (Micro/Epicenter):** KBW Nasdaq Bank Index (Banking Sector). *Utilized instead of recent ETFs to eliminate small-sample bias during pre-crisis estimation.*
 
-The planned asset universe includes broad market, financial sector, and banking sector proxies.
+## Methodology & Models
+The econometric workflow includes estimating models with Student-t innovations to account for heavy-tailed financial returns:
+* GARCH(1,1), GARCH(1,2), GARCH(2,1)
+* GJR-GARCH(1,1)
+* EGARCH(1,1)
 
-Main assets:
+**Key analytical steps:**
+1. Pre-estimation diagnostics (ADF, Jarque-Bera, ARCH-LM).
+2. Model optimization and parameter estimation.
+3. Post-estimation diagnostics (Ljung-Box, residual ARCH-LM, Engle-Ng Sign Bias).
+4. 1-step ahead expanding-window OOS volatility forecasting.
 
-```text
-SPY  - S&P 500 ETF
-XLF  - Financial Select Sector ETF
-KBE  - Bank ETF
+## Evaluation Metrics
+Forecast accuracy is strictly audited using:
+* **RMSE** (Root Mean Squared Error)
+* **MAE** (Mean Absolute Error)
+* **QLIKE** (Quasi-Likelihood Loss)
+
+**QLIKE** is emphasized as the primary ranking metric because it heavily penalizes the dangerous underestimation of volatility, acting as an essential safeguard against model risk during financial meltdowns.
