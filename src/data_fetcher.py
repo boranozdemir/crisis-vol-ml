@@ -1,12 +1,10 @@
 """
 data_fetcher.py
 
-Fetches daily ETF price data for the 2008 mortgage crisis volatility project.
-
 Main assets:
     SPY : S&P 500 ETF
     XLF : Financial sector ETF
-    KBE : Bank ETF
+    BKX : Nasdaq Bank Index
 
 Outputs:
     data/raw/prices.csv
@@ -37,7 +35,7 @@ class DataConfig:
         default_factory=lambda: {
             "SPY": "SPY",   # broad U.S. equity market
             "XLF": "XLF",   # financial sector
-            "KBE": "KBE",   # banking sector
+            "BKX": "^BKX",   # banking sector
         }
     )
 

@@ -1,20 +1,16 @@
-import warnings
 from pathlib import Path
-
 import pandas as pd
 import numpy as np
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Suppress warnings for a clean run
-warnings.filterwarnings("ignore")
-
-# Define paths
+# paths
 RAW_DIR = Path("data/raw")
 PROCESSED_DIR = Path("data/processed")
-OUTPUT_DIR = Path("outputs/figures/data_overview")
+OUTPUT_DIR = Path("outputs/data_overview")
 
-# Define the crisis period for shading the charts
+# crisis period for shading the charts
 CRISIS_START = "2007-07-01"
 CRISIS_END = "2009-06-30"
 
@@ -41,7 +37,7 @@ def create_visualizations():
         ax.plot(prices.index, prices[col], linewidth=1.5, label=col)
     
     add_crisis_shade(ax)
-    ax.set_title("Adjusted Close Prices (SPY, XLF, KBE)", fontsize=14, fontweight='bold')
+    ax.set_title("Adjusted Close Prices (SPY, XLF, BKX)", fontsize=14, fontweight='bold')
     ax.set_ylabel("Price")
     ax.legend()
     plt.tight_layout()
@@ -74,11 +70,33 @@ def create_visualizations():
 
     # 4. Return Distributions (Histograms showing heavy tails)
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     for i, asset in enumerate(returns.columns):
-        sns.histplot(returns[asset].dropna(), bins=60, kde=True, ax=axes[i], color=sns.color_palette()[i])
+        data = returns[asset].dropna()
+        
+        # Plot the empirical histogram and KDE (Kernel Density Estimate)
+        sns.histplot(data, bins=60, stat='density', kde=True, ax=axes[i], 
+                     color=sns.color_palette()[i], alpha=0.5, label='Empirical KDE')
+        
+        # Calculate mean and standard deviation for the Normal Overlay
+        mu, std = data.mean(), data.std()
+        
+        # Create x-axis values for the normal curve spanning the limits of the plot
+        xmin, xmax = axes[i].get_xlim()
+        x = np.linspace(xmin, xmax, 100)
+        
+        # Calculate the theoretical normal PDF (Probability Density Function)
+        p = norm.pdf(x, mu, std)
+        
+        # Plot the Normal curve overlay
+        axes[i].plot(x, p, 'k', linewidth=2, linestyle='--', label='Normal Dist.')
+        
         axes[i].set_title(f"Distribution: {asset}")
         axes[i].set_xlabel("Return")
         axes[i].set_ylabel("Density")
+        
+        # Add legend to distinguish Empirical vs Normal
+        axes[i].legend(loc='upper right', fontsize=9)
     
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "04_return_distributions.png", dpi=300)
@@ -93,7 +111,7 @@ def create_visualizations():
     sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1, 
                 fmt=".2f", square=True, linewidths=.5, cbar_kws={"shrink": .8})
     
-    plt.title("Return Correlation Matrix (SPY, XLF, KBE)", fontsize=14, fontweight='bold', pad=15)
+    plt.title("Return Correlation Matrix (SPY, XLF, BKX)", fontsize=14, fontweight='bold', pad=15)
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "05_return_correlation.png", dpi=300)
     plt.close()

@@ -1,147 +1,167 @@
+import warnings
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from arch import arch_model
+from statsmodels.stats.diagnostic import acorr_ljungbox
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATA_PATH = PROJECT_ROOT / "data" / "processed" / "log_returns.csv"
-TABLE_DIR = PROJECT_ROOT / "outputs" / "tables" / "garch"
-MODEL_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "models" / "garch"
+# Suppress warnings for cleaner console output
+warnings.filterwarnings("ignore")
 
-ASSETS = ["SPY", "XLF", "KBE"]
+# Project configuration
+PROCESSED_DIR = Path("data/processed")
+OUTPUT_DIR = Path("outputs/models")
 
-PERIODS = {
-    "full_sample": (None, None),
-    "pre_crisis": ("2005-01-01", "2007-06-30"),
-    "crisis": ("2007-07-01", "2009-06-30"),
-    "post_crisis": ("2009-07-01", "2012-12-31"),
-}
-
-MODEL_SPECS = {
-    "GARCH_11": {"vol": "GARCH", "p": 1, "o": 0, "q": 1, "dist": "t"},
-    "GJR_GARCH_11": {"vol": "GARCH", "p": 1, "o": 1, "q": 1, "dist": "t"},
-    "EGARCH_11": {"vol": "EGARCH", "p": 1, "o": 1, "q": 1, "dist": "t"},
-}
-
-MIN_OBS = 250
-
-def ensure_dirs():
-    TABLE_DIR.mkdir(parents=True, exist_ok=True)
-    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-def estimate_garch_models():
-    ensure_dirs()
+def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
+    """Renders a pandas DataFrame as a high-quality, readable PNG table."""
+    df_display = df.copy()
     
-    # Load and prepare returns
-    returns = pd.read_csv(DATA_PATH, index_col=0, parse_dates=True).sort_index()
+    # Format floats to 4 decimal places
+    for col in df_display.select_dtypes(include=[float]).columns:
+        df_display[col] = df_display[col].apply(lambda x: f"{x:.4f}")
+
+    # Set up fixed, robust figure size parameters
+    num_cols = len(df.columns)
+    num_rows = len(df)
     
-    parameters_list = []
-    cond_vol_list = []
-    std_resid_list = []
+    # Base dimensions: 1.5 inches per column width, 0.5 inches per row height
+    fig_width = max(10, num_cols * 1.5) 
+    fig_height = max(3, num_rows * 0.6 + 1.5) 
+    
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=300)
+    ax.axis('off')
 
-    print("Starting GARCH estimations...")
+    # Create table
+    table = ax.table(cellText=df_display.values, 
+                     colLabels=df_display.columns, 
+                     loc='center', 
+                     cellLoc='center')
+    
+    # Enforce clear font sizing and vertical scaling
+    table.auto_set_font_size(False)
+    table.set_fontsize(12)  # Increased font size for readability
+    table.scale(1, 2.5)     # Significantly increase row height
 
-    for asset in ASSETS:
-        for period_name, (start, end) in PERIODS.items():
-            
-            # Slice data for the period
-            if start and end:
-                series = returns.loc[start:end, asset].dropna()
+    # Set uniform column widths
+    col_width = 1.0 / num_cols
+    for (row, col), cell in table.get_celld().items():
+        cell.set_width(col_width)
+        
+        # Style Header
+        if row == 0:
+            cell.set_text_props(weight='bold', color='white', fontsize=13)
+            cell.set_facecolor('#1f497d')
+        # Style Data Rows
+        else:
+            if row % 2 == 0:
+                cell.set_facecolor('#f2f2f2')
             else:
-                series = returns[asset].dropna()
+                cell.set_facecolor('white')
 
-            if len(series) < MIN_OBS:
-                continue
+    plt.title(title, fontweight="bold", fontsize=16, pad=20)
+    plt.tight_layout()
+    plt.savefig(OUTPUT_DIR / filename, bbox_inches='tight', dpi=300)
+    plt.close()
 
-            for model_name, spec in MODEL_SPECS.items():
-                try:
-                    # Fit the model
-                    am = arch_model(
-                        series, 
-                        mean="Constant", 
-                        vol=spec["vol"], 
-                        p=spec["p"], 
-                        o=spec["o"], 
-                        q=spec["q"], 
-                        dist=spec["dist"], 
-                        rescale=False
-                    )
-                    res = am.fit(disp="off", show_warning=False)
-
-                    # Extract Key Parameters & P-Values
-                    params = res.params
-                    pvals = res.pvalues  
-                    
-                    alpha = params.get("alpha[1]", np.nan)
-                    beta = params.get("beta[1]", np.nan)
-                    gamma = params.get("gamma[1]", 0.0) # 0 if not GJR/EGARCH
-
-                    if model_name == "GARCH_11":
-                        persistence = alpha + beta
-                    elif model_name == "GJR_GARCH_11":
-                        persistence = alpha + beta + 0.5 * gamma
-                    elif model_name == "EGARCH_11":
-                        persistence = beta  # EGARCH için kalıcılık sadece beta'dır
-                    else:
-                        persistence = np.nan
-                    
-                    # Store Results (Now with p-values!)
-                    parameters_list.append({
-                        "Asset": asset,
-                        "Period": period_name,
-                        "Model": model_name,
-                        "n_obs": res.nobs,
-                        "AIC": res.aic,
-                        "BIC": res.bic,
-                        "alpha_1": alpha,
-                        "alpha_1_pval": pvals.get("alpha[1]", np.nan),
-                        "gamma_1": params.get("gamma[1]", np.nan),
-                        "gamma_1_pval": pvals.get("gamma[1]", np.nan),  # <-- Araştırma sorusunun kalbi
-                        "beta_1": beta,
-                        "beta_1_pval": pvals.get("beta[1]", np.nan),
-                        "persistence": persistence
-                    })
-
-                    # Extract Conditional Volatility & Standardized Residuals
-                    cond_vol = pd.DataFrame({
-                        "Date": series.index,
-                        "Asset": asset,
-                        "Period": period_name,
-                        "Model": model_name,
-                        "Conditional_Volatility": res.conditional_volatility
-                    })
-                    cond_vol_list.append(cond_vol)
-
-                    std_resid = pd.DataFrame({
-                        "Date": series.index,
-                        "Asset": asset,
-                        "Period": period_name,
-                        "Model": model_name,
-                        "Standardized_Residuals": res.std_resid
-                    })
-                    std_resid_list.append(std_resid)
-
-                except Exception as e:
-                    print(f"Failed to fit {model_name} for {asset} in {period_name}: {e}")
-
-    # --- Compile and Save DataFrames ---
+def plot_conditional_variance(asset: str, realized_var: pd.Series, cond_var: pd.Series, model_name: str):
+    """Overlays the model's conditional variance over the realized volatility proxy."""
+    plt.figure(figsize=(10, 5))
     
-    if parameters_list:
-        params_df = pd.DataFrame(parameters_list)
-        params_df.to_csv(TABLE_DIR / "garch_parameters_and_fit.csv", index=False)
-        print(f"Saved parameters to: {TABLE_DIR / 'garch_parameters_and_fit.csv'}")
+    plt.plot(realized_var.index, realized_var, color='gray', alpha=0.3, linewidth=1, label="Realized Proxy ($r_t^2$)")
+    plt.plot(cond_var.index, cond_var, color='darkred', linewidth=1.5, label=f"Cond. Variance ({model_name})")
+    
+    plt.axvspan(pd.Timestamp("2007-07-01"), pd.Timestamp("2009-06-30"), color='gray', alpha=0.15, label='Crisis Period')
+    
+    plt.title(f"Volatility Fit: {asset} (Lowest BIC: {model_name})", fontsize=12, fontweight='bold')
+    plt.ylabel("Variance")
+    plt.legend(loc='upper left')
+    plt.tight_layout()
+    plt.savefig(OUTPUT_DIR / f"{asset}_conditional_variance_fit.png", dpi=300)
+    plt.close()
 
-    if cond_vol_list:
-        cond_vol_df = pd.concat(cond_vol_list, ignore_index=True)
-        cond_vol_df.to_csv(MODEL_OUTPUT_DIR / "conditional_volatility.csv", index=False)
-        print(f"Saved conditional volatility to: {MODEL_OUTPUT_DIR / 'conditional_volatility.csv'}")
+def run_model_selection():
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    returns_df = pd.read_csv(PROCESSED_DIR / "log_returns.csv", index_col="Date", parse_dates=True)
+    
+    model_grid = {
+        "GARCH(1,1)": {"vol": "Garch", "p": 1, "o": 0, "q": 1},
+        "GARCH(1,2)": {"vol": "Garch", "p": 1, "o": 0, "q": 2},
+        "GARCH(2,1)": {"vol": "Garch", "p": 2, "o": 0, "q": 1},
+        "GJR-GARCH(1,1)": {"vol": "Garch", "p": 1, "o": 1, "q": 1},
+        "EGARCH(1,1)": {"vol": "EGARCH", "p": 1, "o": 1, "q": 1}
+    }
 
-    if std_resid_list:
-        std_resid_df = pd.concat(std_resid_list, ignore_index=True)
-        std_resid_df.to_csv(MODEL_OUTPUT_DIR / "standardized_residuals.csv", index=False)
-        print(f"Saved standardized residuals to: {MODEL_OUTPUT_DIR / 'standardized_residuals.csv'}")
+    evaluation_records = []
 
-    print("GARCH model estimations completed.")
+    for asset in returns_df.columns:
+        print(f"--- Processing {asset} ---")
+        y = returns_df[asset].dropna()
+        y_squared = y ** 2
+        
+        best_bic = np.inf
+        best_model_name = ""
+        best_cond_var = None
+        
+        for name, specs in model_grid.items():
+            try:
+                am = arch_model(y, mean="Constant", vol=specs["vol"], p=specs["p"], o=specs["o"], q=specs["q"], dist="t", rescale=True)
+                res = am.fit(disp="off")
+                
+                # Diagnostics calculations
+                std_resid = res.resid / res.conditional_volatility
+                lb_res = acorr_ljungbox(std_resid.dropna(), lags=[10], return_df=True)
+                lb_sq_res = acorr_ljungbox(std_resid.dropna()**2, lags=[10], return_df=True)
+                
+                # Max p-value of variance equation parameters (to check significance)
+                var_pvalues = res.pvalues[res.pvalues.index.str.contains('omega|alpha|beta|gamma')]
+                max_pval = var_pvalues.max()
+                
+                # Persistence Calculation
+                persistence = np.nan
+                if specs["vol"] == "Garch" and specs["o"] == 0:
+                    persistence = sum(res.params[res.params.index.str.contains('alpha|beta')])
+                elif specs["vol"] == "Garch" and specs["o"] > 0: # GJR
+                    alpha = sum(res.params[res.params.index.str.contains('alpha')])
+                    beta = sum(res.params[res.params.index.str.contains('beta')])
+                    gamma = sum(res.params[res.params.index.str.contains('gamma')])
+                    persistence = alpha + beta + (0.5 * gamma)
+                elif specs["vol"] == "EGARCH":
+                    persistence = sum(res.params[res.params.index.str.contains('beta')])
+
+                bic = res.bic
+                
+                evaluation_records.append({
+                    "Asset": asset,
+                    "Model": name,
+                    "BIC": bic,
+                    "Persist.": persistence,
+                    "Max p-val": max_pval,
+                    "Resid LB p-val": lb_res['lb_pvalue'].iloc[0],
+                    "Resid LB^2 p-val": lb_sq_res['lb_pvalue'].iloc[0]
+                })
+                
+                if bic < best_bic:
+                    best_bic = bic
+                    best_model_name = name
+                    scale = res.scale
+                    best_cond_var = (res.conditional_volatility / scale) ** 2
+                    
+            except Exception as e:
+                print(f"Failed to fit {name} for {asset}: {e}")
+
+        plot_conditional_variance(asset, y_squared, best_cond_var, best_model_name)
+
+    eval_df = pd.DataFrame(evaluation_records)
+    eval_df.to_csv(OUTPUT_DIR / "model_evaluation_matrix.csv", index=False)
+    
+    for asset in eval_df['Asset'].unique():
+        asset_df = eval_df[eval_df['Asset'] == asset].drop(columns=['Asset'])
+        save_dataframe_as_image(asset_df, f"{asset}_model_evaluation.png", f"{asset} Model Evaluation Matrix")
+
+    print(f"\nModeling complete. Clean and robust results saved to {OUTPUT_DIR}")
 
 if __name__ == "__main__":
-    estimate_garch_models()
+    run_model_selection()
