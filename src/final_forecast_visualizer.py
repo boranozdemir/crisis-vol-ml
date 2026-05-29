@@ -56,7 +56,7 @@ def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
     plt.close()
 
 def plot_forecast_comparison(asset: str, results_df: pd.DataFrame, best_model: str):
-    """Plots the actual realized volatility proxy against GJR-GARCH and the Best Model."""
+    """Plots the actual realized volatility against GJR-GARCH and the Best Model."""
     plt.figure(figsize=(12, 6))
     
     # Ensure Date is index for plotting
@@ -66,10 +66,9 @@ def plot_forecast_comparison(asset: str, results_df: pd.DataFrame, best_model: s
     # Plot Actual Proxy
     plt.plot(plot_df.index, plot_df['Actual_Proxy'], color='gray', alpha=0.3, linewidth=1, label="Actual Proxy ($r_t^2$)")
     
-    # Plot Baseline Ekonometri (GJR-GARCH)
+    # Plot Baseline (GJR-GARCH)
     plt.plot(plot_df.index, plot_df['GJR-GARCH(1,1)'], color='navy', linestyle='--', alpha=0.7, linewidth=1.2, label="TS Baseline (GJR-GARCH)")
     
-    # Plot The Ultimate Winner (if it's different from GJR-GARCH)
     if best_model != 'GJR-GARCH(1,1)':
         plt.plot(plot_df.index, plot_df[best_model], color='darkred', linewidth=1.5, label=f"OOS Best Model ({best_model})")
     
