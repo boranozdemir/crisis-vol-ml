@@ -5,13 +5,11 @@ import matplotlib.pyplot as plt
 from arch import arch_model
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-# Define main paths for data and outputs
 PROCESSED_DIR = Path("data/processed")
-OUTPUT_DIR = Path("outputs/forecasts")
+OUTPUT_DIR = Path("outputs/garch_forecast")
 
-# Expanding Window Out-of-Sample (OOS) Timeline
-EVAL_START_DATE = "2007-07-01" # Onset of the subprime mortgage crisis
-EVAL_END_DATE = "2009-12-31"   # Tail end of the crisis and recovery phase
+EVAL_START_DATE = "2007-07-01" 
+EVAL_END_DATE = "2009-12-31"   
 
 def save_dataframe_as_image(df: pd.DataFrame, filename: str, title: str):
     df_display = df.copy()
@@ -95,9 +93,7 @@ def run_forecast_evaluation():
     forecast_records = []
 
     for asset in returns_df.columns:
-        print(f"\n{'='*40}")
         print(f"--- Running Expanding Window OOS Forecast for {asset} ---")
-        print(f"Fitting models day-by-day. This requires heavy computation, please wait...")
         
         y = returns_df[asset].dropna()
         actual_proxy = y ** 2

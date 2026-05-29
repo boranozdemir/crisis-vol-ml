@@ -14,8 +14,7 @@ OUTPUT_DIR = Path("outputs/data_overview")
 CRISIS_START = "2007-07-01"
 CRISIS_END = "2009-06-30"
 
-# Professional Corporate Palette: Navy, Burgundy/Dark Red, Dark Gray
-CUSTOM_PALETTE = ['#1f497d', '#8b0000', '#595959']
+COLOR_PALATTE = ['#1f497d', '#8b0000', '#595959']
 
 def add_crisis_shade(ax):
     """Adds a gray shaded region to highlight the 2008 mortgage crisis."""
@@ -38,7 +37,7 @@ def create_visualizations():
     ax = plt.gca()
     for i, col in enumerate(prices.columns):
         # Apply custom colors sequentially
-        ax.plot(prices.index, prices[col], linewidth=1.5, label=col, color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)])
+        ax.plot(prices.index, prices[col], linewidth=1.5, label=col, color=COLOR_PALATTE[i % len(COLOR_PALATTE)])
     
     add_crisis_shade(ax)
     ax.set_title("Adjusted Close Prices (SPY, XLF, BKX)", fontsize=14, fontweight='bold')
@@ -51,7 +50,7 @@ def create_visualizations():
     # 2. Daily Log Returns (Subplots for comparison)
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
     for i, asset in enumerate(returns.columns):
-        axes[i].plot(returns.index, returns[asset], color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], linewidth=0.8)
+        axes[i].plot(returns.index, returns[asset], color=COLOR_PALATTE[i % len(COLOR_PALATTE)], linewidth=0.8)
         add_crisis_shade(axes[i])
         axes[i].set_title(f"Daily Log Returns: {asset}")
         axes[i].set_ylabel("Return")
@@ -63,7 +62,7 @@ def create_visualizations():
     # 3. Squared Returns / Volatility Proxy (Subplots)
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
     for i, asset in enumerate(vol_proxy.columns):
-        axes[i].plot(vol_proxy.index, vol_proxy[asset], color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], linewidth=0.8)
+        axes[i].plot(vol_proxy.index, vol_proxy[asset], color=COLOR_PALATTE[i % len(COLOR_PALATTE)], linewidth=0.8)
         add_crisis_shade(axes[i])
         axes[i].set_title(f"Volatility Proxy (Squared Returns): {asset}")
         axes[i].set_ylabel("Squared Return")
@@ -77,9 +76,8 @@ def create_visualizations():
     for i, asset in enumerate(returns.columns):
         data = returns[asset].dropna()
         
-        # Plot the empirical histogram and KDE (Kernel Density Estimate) using the custom palette
         sns.histplot(data, bins=60, stat='density', kde=True, ax=axes[i], 
-                     color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)], alpha=0.6, label='Empirical KDE')
+                     color=COLOR_PALATTE[i % len(COLOR_PALATTE)], alpha=0.6, label='Empirical KDE')
         
         # Calculate mean and standard deviation for the Normal Overlay
         mu, std = data.mean(), data.std()
@@ -91,7 +89,7 @@ def create_visualizations():
         # Calculate the theoretical normal PDF (Probability Density Function)
         p = norm.pdf(x, mu, std)
         
-        # Plot the Normal curve overlay in solid black for sharp professional contrast
+        # Plot the Normal curve overlay
         axes[i].plot(x, p, 'k', linewidth=2, linestyle='--', label='Normal Dist.')
         
         axes[i].set_title(f"Distribution: {asset}")
@@ -110,7 +108,6 @@ def create_visualizations():
     plt.figure(figsize=(8, 6))
     corr_matrix = returns.corr()
     
-    # Custom colormap: Navy Blue (Negative/Low) -> White (Zero) -> Burgundy/Dark Red (Positive/High)
     custom_cmap = sns.blend_palette(['#1f497d', '#ffffff', '#8b0000'], as_cmap=True)
     
     sns.heatmap(corr_matrix, annot=True, cmap=custom_cmap, vmin=-1, vmax=1, 
@@ -129,7 +126,7 @@ def create_visualizations():
     # Calculate 22-day rolling standard deviation and annualize it (sqrt(252))
     for i, col in enumerate(returns.columns):
         rolling_vol = returns[col].rolling(window=22).std() * np.sqrt(252)
-        ax.plot(returns.index, rolling_vol, linewidth=1.2, label=col, color=CUSTOM_PALETTE[i % len(CUSTOM_PALETTE)])
+        ax.plot(returns.index, rolling_vol, linewidth=1.2, label=col, color=COLOR_PALATTE[i % len(COLOR_PALATTE)])
     
     add_crisis_shade(ax)
     ax.set_title("22-Day Rolling Volatility (Annualized Realized Volatility)", fontsize=14, fontweight='bold')

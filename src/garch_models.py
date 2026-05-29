@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from arch import arch_model
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
-# Project configuration
 PROCESSED_DIR = Path("data/processed")
 OUTPUT_DIR = Path("outputs/models")
 
@@ -69,7 +68,7 @@ def plot_conditional_variance(asset: str, realized_var: pd.Series, cond_var: pd.
     
     plt.axvspan(pd.Timestamp("2007-07-01"), pd.Timestamp("2009-06-30"), color='gray', alpha=0.15, label='Crisis Period')
     
-    plt.title(f"Volatility Fit: {asset} (Lowest BIC: {model_name})", fontsize=12, fontweight='bold')
+    plt.title(f"Volatility Fit: {asset} ({model_name})", fontsize=12, fontweight='bold')
     plt.ylabel("Variance")
     plt.legend(loc='upper left')
     plt.tight_layout()
@@ -134,8 +133,8 @@ def run_model_selection():
                     "BIC": bic,
                     "Persist.": persistence,
                     "Max p-val": max_pval,
-                    "Resid LB p-val": lb_res['lb_pvalue'].iloc[0],
-                    "Resid LB^2 p-val": lb_sq_res['lb_pvalue'].iloc[0]
+                    "Res.LB p-val": lb_res['lb_pvalue'].iloc[0],
+                    "Res.LB^2 p-val": lb_sq_res['lb_pvalue'].iloc[0]
                 })
                 
                 if bic < best_bic:
@@ -147,7 +146,7 @@ def run_model_selection():
             except Exception as e:
                 print(f"Failed to fit {name} for {asset}: {e}")
 
-        plot_conditional_variance(asset, y_squared, best_cond_var, best_model_name)
+        plot_conditional_variance(asset, y_squared, best_cond_var, "GJR-GARCH(1,1)")
 
     eval_df = pd.DataFrame(evaluation_records)
     eval_df.to_csv(OUTPUT_DIR / "model_evaluation_matrix.csv", index=False)

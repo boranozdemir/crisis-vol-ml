@@ -1,18 +1,3 @@
-"""
-data_fetcher.py
-
-Main assets:
-    SPY : S&P 500 ETF
-    XLF : Financial sector ETF
-    BKX : Nasdaq Bank Index
-
-Outputs:
-    data/raw/prices.csv
-    data/processed/log_returns.csv
-    data/processed/volatility_proxy.csv
-    data/processed/panel_dataset.csv
-"""
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
@@ -33,9 +18,9 @@ class DataConfig:
     processed_dir: Path = Path("data/processed")
     tickers: Dict[str, str] = field(
         default_factory=lambda: {
-            "SPY": "SPY",   # broad U.S. equity market
-            "XLF": "XLF",   # financial sector
-            "BKX": "^BKX",   # banking sector
+            "SPY": "SPY",   
+            "XLF": "XLF",   
+            "BKX": "^BKX",   
         }
     )
 

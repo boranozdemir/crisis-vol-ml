@@ -6,7 +6,6 @@ from scipy.stats import jarque_bera, kurtosis, skew
 from statsmodels.stats.diagnostic import acorr_ljungbox, het_arch
 from statsmodels.tsa.stattools import adfuller
 
-# Project configuration
 PROCESSED_DIR = Path("data/processed")
 OUTPUT_DIR = Path("outputs/diagnostics")
 ANNUALIZATION_FACTOR = 252
@@ -104,7 +103,7 @@ def run_diagnostics():
         full_sample_results.append(stats)
         
     full_df = pd.DataFrame(full_sample_results)
-    # Reorder columns with the new cleaner names
+    
     cols = ["Asset", "Ann. Vol (%)", "Skewness", "Excess Kurtosis", 
             "ADF p-val", "JB p-val", "LB p-val (Lag 10)", "LB^2 p-val (Lag 10)", 
             "ARCH-LM p-val"]
@@ -126,7 +125,7 @@ def run_diagnostics():
                 period_results.append(stats)
 
     period_df = pd.DataFrame(period_results)
-    # filter columns for the period breakdown
+    # Filter columns for the period breakdown
     period_cols = ["Asset", "Period", "Ann. Vol (%)", "Skewness", "Excess Kurtosis"]
     period_df = period_df[period_cols]
     
